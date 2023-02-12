@@ -1,0 +1,452 @@
+---
+title: "BDS Final Project"
+authors: Cole Leppert, Alexa Myers, Trevor Coville, and Corin Bogdaschevsky
+---
+
+Final Project | Part 1
+Group: West 4
+Members: Alexa Myers, Cole Leppert, Corin Bogdashevsky, and  Trevor Coville
+
+
+Introduction
+
+San Francisco International Airport (SFO) executives and state and local officials have expressed interest in better understanding customer satisfaction at SFO. Specifically, SFO executives and officials are interested in understanding the airport’s current strengths and areas for improvement in order to increase traffic and revenue.
+
+For this portion of the project our team has worked to review all the survey questions, resolve missing data appropriately, and perform exploratory data analysis (EDA) on questions that we have identified as key to the overall analysis of satisfaction at SFO. From the EDA process we have also compiled three hypotheses regarding satisfaction at SFO.
+
+
+EDA
+
+SFO has conducted a survey in order to gather information on customer satisfaction. The survey consists of 19 survey questions and multiple demographics questions. Many of the questions are multi-part questions or allow for customers to add text comments. 3,234 customers' responses are included in the data. 
+
+
+Key vs Non-Key Questions
+
+Based on a general review of the data we noted that the following questions seem to relate to key factors in the analysis of customer satisfaction at SFO:
+
+Question 6 - How does SFO rate on each of the following attributes? (14 seperate attributes)
+Question 8 - Rate the general cleanliness of SFO?
+Question 9 - How safe do you feel at SFO?
+
+
+
+
+
+We further noted the following questions that did not seem to relate to key factors in the analysis of customer satisfaction at SFO:
+
+Question 7 - text Based Comments on improving the passenger experience at SFO.
+
+Rational for Non-Key Classification: Q7 is more open ended comments on improving the experience. While this could be useful, there are 90 different response options for this  variable and I think that the responses are too varied to provide use to the scope of our project.
+  
+Question 10 - Have you ever used the SFO website (www.flysfo.com)?
+
+Rational for Non-Key Classification: Q10 relates to usage of the airport website and after quick analysis we noted that most customers had not used the site, thus we do not beleive it is a significant factor in customer satisfaction at SFO.
+
+
+
+
+
+
+EDA Performed On Key Questions:
+
+General EDA Steps
+```{r}
+#Load Needed Libraries
+library(dplyr)
+library(tidyverse)
+library(ggcorrplot)
+library(ggcorrplot)
+
+
+#Load Data
+df = read.delim("SFO_survey_withText.txt", header = TRUE, sep = "\t")
+
+#Call Head to Visualize Data Structure
+head(df)
+```
+
+Specific EDA by Key Question
+
+
+
+Question 6 - How does SFO rate on each of the following attributes? (A listing of 14 attributes rated on a scale of 0 - 6 from unacceptable to outstanding with 0 representing blank and 6 representing not applicable)
+
+
+Q6 deals with satisfaction of SFO airport. There are 13 individual components of satisfaction, from restaurants to parking, and then the final part is overall satisfaction of the airport.
+
+```{r}
+q6 <- df %>% select(starts_with("Q6"))
+```
+
+
+```{r}
+#Calling Summary of Q6
+summary(q6)
+```
+
+We noted that there are a fair bit of missing values in our data. It seems that the later Q6 questions, with the exception of the final one, have the highest number of missing values which could be due to people getting bored of answering by the time they get past ~10 or so questions. Besides the missing values, we can also see that the minimum is always 1, meaning that we have no values of 0 in this question (representing a blank value), but also we have at least one 6 in every part of the question. The people with a 6 response have not visited SFO or are not applicable to the question, so we will replace these values with NA for now and treat them as blanks for our analysis. The values of 6 skew our results so it is better to drop them or replace them with NA and handle them later.
+
+```{r}
+#Replacing responses of 6 with NAs
+q6[q6 == 6] <- NA
+```
+
+```{r}
+#Calling Summary Again to Confirm Results
+summary(q6)
+```
+
+Now, we can see a more accurate representation of the responses without the unknown values. At a glance, it looks the the sentiment is strongly positive. We will dive deeper to examine these Q6 responses further.
+
+```{r}
+#Creating an Average Sentiment by Q6 Attribute
+q6 %>% na.omit() %>% colMeans()
+```
+
+The average responses confirm our initial guess and the responses are all fairly positive. It looks like all of the average responses are just under 4 for satisfaction, on a 5 point scale. With a 5 being "Outstanding" a 4 should be considered a very positive response. Also, Q6N, being the overall satisfaction with SFO, had an average of 3.955, which again shows a very positive sentiment toward the customer experience at SFO.
+
+Next, we want to see how correlated our variables are within Q6
+```{r}
+#Creating Correlation Plot for Q6
+q6 %>%
+na.omit() %>%
+cor() %>%
+ggcorrplot()
+```
+
+It looks like our variables within Q6 are all strongly correlated. This makes sense intuitively since they are relate to a customers general satisfaction with different parts of the airport. If a person has an overall good experience, they are probably more likely to give good scores across the board, and the opposite is likely true for people with a bad experience.
+
+Now we will plot boxplots for each of the 14 parts of Q6 to quickly examine the distributions
+```{r}
+boxplot(q6$Q6A,
+main = "Satisfaction with Arts and Exhibitions in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6B,
+main = "Satisfaction with Restaurants in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6C,
+main = "Satisfaction with Retail shops and concessions in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6D,
+main = "Satisfaction with Signs and directions inside SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6E,
+main = "Satisfaction with Escalators/elevators/moving walkways in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6F,
+main = "Satisfaction with Information on screens/monitors in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6G,
+main = "Satisfaction with Information booths (lower level near baggage claim) in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6H,
+main = "Satisfaction with Information booths (upper level – departure area) in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6I,
+main = "Satisfaction with Signs and directions on SFO airport roadways in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6J,
+main = "Satisfaction with Airport parking facilities in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6K,
+main = "Satisfaction with AirTrain in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6L,
+main = "Satisfaction with Long term parking lot shuttle in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6M,
+main = "Satisfaction with Airport rental car center in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+```{r}
+boxplot(q6$Q6N,
+main = "Satisfaction with SFO Airport as a whole in SFO",
+xlab = "Satisfaction",
+col = "orange",
+border = "brown",
+horizontal = TRUE
+)
+```
+
+Looking at all of the parts to Q6, we can see more of how overwhelmingly positive the responses are. The median of every part of the question is at 4, with anyone ranking a 1 for any of the parts is considered an outlier. It seems like people are very satisfied with all of the parts of the SFO airport and there were no glaring weak points that people were not happy with.
+
+```{r}
+table(q6$Q6N)
+```
+
+The distribution for Q6N, the overall satisfaction, looked a bit weird, but I now see that is is because over half of the responses were a 4. Over 70% of the responses were a 4 or a 5, which is a great sign for people's satisfaction with the airport.
+
+Since there were a lot of missing values, we will also use the mice package to impute the missing data and see if this has much of an effect on our results at a glance.
+```{r}
+library(mice)
+
+miceMod = mice(q6,pred = quickpred(q6, minpuc = .2, mincor = .01),
+               m=5, maxit = 40,
+               print = FALSE, seed = 42)
+```
+
+```{r}
+plot(miceMod)
+```
+
+```{r}
+imputed_df <- complete(miceMod,1)
+summary(imputed_df)
+```
+
+```{r}
+colMeans(imputed_df)
+```
+
+```{r}
+q6 %>% na.omit() %>% colMeans()
+```
+
+```{r}
+colMeans(imputed_df) - q6 %>% na.omit() %>% colMeans()
+```
+
+It looks like our responses did not change drastically, however there was still a clear effect. It seems like many of the variables actually decreased by a bit in satisfaction (10 of the 14 variables), but 4 of them did increase by a bit. The change is not major, however, and we would not expect it to make a huge change in our results. The biggest change after imputing the data was in Q6B, which decreased by only about 0.1
+
+
+
+Question 8 - Rate the general cleanliness of SFO? (Responses are given on a 1 - 5 scale and are broken out by 6 separate airport facilities and include the ability to provide additional free form text comment responses.)
+
+
+Exploring Correlation Between Question 8 Responses Through Correlation Plot
+```{r}
+#Loading needed library
+library(ggcorrplot)
+
+#Slimming my subset of variables down to exclude comment responses
+q8_slim <- df %>% select("Q8A",
+                                   "Q8B",
+                                   "Q8C",
+                                   "Q8D",
+                                   "Q8E",
+                                   "Q8F")
+
+
+#Creating correlation plot of numeric responses questions 8 through 10
+q8_slim %>%
+na.omit() %>%
+cor() %>%
+ggcorrplot()
+```
+
+In the above correlation plot one can note that the most correlated responses appear to be Q8C and Q8D. These questions pertain to the cleanliness of the SFO Airtrane and the cleanliness of the SFO rental car center respectively. Based on a quick review of the SFO airport transportation system it appears that the Airtrane is the primary way for customers to get to and from the rental center, thus it makes sense that customers may experience both the rental center and the Airtrane together or in a similar time frame which may contribute to more correlated impressions of the cleanliness of the two facilities.
+
+Q8F and Q8E also had a moderate correlation. These variables represent the airport restroom cleanliness and airport restaurant cleanliness respectively. One reason that comes to mind for the correlation between these two responses is that customers who remain at the airport long enough to eat at the restaurants are more likely to have also used the airport restrooms. Customers experiencing both facilities may be more likely to have correlated responses on their cleanliness.
+
+Exploring Q8 Average Cleanliness by Facility
+```{r}
+#Slimming my subset of variables down to exclude comment responses
+tc_data_slim <- df %>% select("Q8A",
+                                   "Q8B",
+                                   "Q8C",
+                                   "Q8D",
+                                   "Q8E",
+                                   "Q8F")
+
+
+#Creating correlation plot of numeric responses questions 8 through 10
+tc_data_slim %>%
+select("Q8A","Q8B","Q8C","Q8D","Q8E","Q8F")  %>%
+na.omit() %>%
+  #Removing "6" blank responses so that they do not skew the averages
+  filter(Q8A != 6) %>%
+  filter(Q8B != 6) %>%
+  filter(Q8C != 6) %>%
+  filter(Q8D != 6) %>%
+  filter(Q8E != 6) %>%
+  filter(Q8F != 6) %>%
+colMeans()
+```
+
+Based on the above analysis I can see that of the customers who have experienced the SFO airport facilities, the average cleanliness rating appears to be between 4 and 5 for all facilities. This means that on average most customers are find the facilities between average and clean. Customers reported the highest average cleanliness in the resturants and the boarding areas. The lowest average cleanliness was reported in the restrooms and parking garage.
+
+Exploring Free Form Text Comments on Q8 Cleanliness
+```{r}
+df %>%
+  select("Q8COM1", "Q8COM2") %>%
+  na.omit()
+```
+
+Most customers did not choose to leave a comment in response to question 8 and as these were text comments by users, imputation of the missing data was not considered reasonable. Of the five customers that provided comments on the cleanliness of specific facilities the most frequent comments were responses 1 and 11. These responses respectively were "Restroom facilities need repair/refurbishment/don't work properly" and "Excessive trash/ trash cans not emptied". The first comment corresponds to the low overall cleanliness rating of the airport restrooms.
+
+
+
+Question 9 - How safe do you feel at SFO? (Responses are given on a 1 - 5 scale with the ability to provide additional free form text comment responses categorized as positive, negative, or neutral based on the user’s initial response to the question.)
+
+Exploring Frequency of Responses to Q9
+```{r}
+#Creating bar plot of Question 9 Responses
+df %>%
+select("Q9")  %>%
+na.omit() %>%
+table() %>%
+barplot()
+```
+
+Based on the above analysis we can see that the vast majority of customers find the SFO airport safe (4) either or extremely safe (5). The remainder of customer seem to be neutral on the airport's safety and very few perceive the airport to be unsafe.
+
+Calculating Q9a Most Frequent Follow Up Response by Positive, Negative, and Neutral Groupings
+```{r}
+#Loading Needed Library
+library ("DescTools")
+
+#Creating data frame of Q9 positive follow up questions
+data_frame <- df %>%
+select(starts_with("Q9AP")) %>%
+na.omit()
+
+
+# iterating over all the columns of the
+# dataframe
+for (i in 1:ncol(data_frame)){
+    
+  # calculating mode of ith column
+  mod_val <- Mode(data_frame[,i])
+  cat(i, ": ",mod_val,"\n")
+}
+```
+As seen above after a user answers question 9 "How safe do you feel at SFO?" on the 1 to 5 numeric scale, they are grouped into positive, negative, and neutral groupings based on the first response and then are asked "Why do you say that" and given 20 different options to explain their rating of the airport security. They are allowed to pick up to 3 explanations. For the positive grouping of customers the most frequent responses where 1 and 4, "There are a lot of security officers/Security officers/staff are alert/effective/confident" and "Airport is open/brightly lit/well-maintained/calm".
+
+```{r}
+##Creating data frame of Q9 negative follow up questions
+data_frame <- df %>%
+select("Q9ANEG1","Q9ANEG2") %>%
+na.omit()
+
+
+# iterating over all the columns of the
+# dataframe
+for (i in 1:ncol(data_frame)){
+    
+  # calculating mode of ith column
+  mod_val <- Mode(data_frame[,i])
+  cat(i, ": ",mod_val,"\n")
+}
+```
+For the negative grouping of customers the most frequent responses where 9 and 10, "Needs to be more security officers/don’t see any" and "Security officers are not alert/ineffective/unprofessional".
+
+
+```{r}
+#Creating data frame of Q9 neutral follow up questions
+data_frame <- df %>%
+select("Q9ANTR1","Q9ANTR2") %>%
+na.omit()
+
+
+# iterating over all the columns of the
+# dataframe
+for (i in 1:ncol(data_frame)){
+    
+  # calculating mode of ith column
+  mod_val <- Mode(data_frame[,i])
+  cat(i, ": ",mod_val,"\n")
+}
+```
+For the neutral grouping of customers the most frequent responses where 8 and 16, "Never feel completely safe/feel uneasy in an airport/Must remain vigilant" and "If someone wants to harm people, they’ll find a way to do it".
+
+These responses for the follow up portion of Q9 seem to match the positive, negative, and netural sentiments of thier groupings and reflect areas where the airport is performing well, and also areas where the airport could improve.
+
+
+
+Hypotheses
+
+The overall research question posed by the SFO executives is what factors currently contributed positively and negatively to customer satisfaction at the airport. Specifically the executives are concerned with how to increase customer satisfaction.
+
+1. The top three factors driving customer satisfaction at SFO are ease of airport navigation, airport cleanliness, and airport safety. We can investigate this hypothesis by analyzing customer satisfaction with SFO in general as reported in question Q6-6N against all questions that we determine relate to key factors in terms of prediction of overall customer satisfaction.
+
+2. Factors such as airline, frequency of travel out of SFO, and purpose of travel, can be used to group customers into segments that may have different key drivers of airport satisfaction. Example: Business travelers could be identified as those with frequent travel out of SFO for the purpose of business and this group may be more interested in power outlet and wifi availability than restaurant cleanliness.
+
