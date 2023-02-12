@@ -1,0 +1,315 @@
+---
+title: "Final Project Report"
+output: pdf_document
+---
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(lmtest)
+library(ggplot2)
+library(dplyr)
+library(MASS)
+library(rms)
+library(doParallel)
+```
+
+## Introduction
+
+The purpose of this assignment is to figure out if we can predict the number of larcenies with various independent variables. The data set consists of information from the 1990 census, law enforcement data, and the 1995 Uniform Crime Reports FBI team. There ar 125 independent variables that are used to determine the 18 dependent variables in the data set. This data was concatenated from all those 3 sources specifically to perform linear regression. One piece of information that I found interesting was that this data was collected from police stations with at least 100 officers and a few random smaller police departments sprinkled in. That could cause some sort of bias because larger departments are usually in relatively major cities, which takes away smaller towns that are usually safer and could lower the overall crime numbers. 
+
+## Step 1
+
+In the first step, before I chose the variables, I got rid of the data points that had missing values and I filtered the data to take out some of the extreme values. This made the data patterns more visible when graphed, especially to identify heteroscedasticity and correlation. The way I decided to filter the data was just trying to look at where the majority of data was, which was a thick cluster of points on the left side of the graph. The variables that I thought would we good predictors based on my intuition were per capita income (perCapInc), the number of homeless people counted in the street (NumStreet), the median gross rent (MedRent), and the number of people under the poverty level. 
+
+```{r}
+data <- read.delim('CommViolPredUnnormalizedData.txt', header = TRUE, sep = ',')
+names <- read.csv('FormattedColumnNames.csv', header = FALSE)
+colnames(data) <- names$V1
+select_data <- dplyr::select(data, larcenies, perCapInc, NumStreet, MedRent, NumUnderPov)
+select_data <- select_data[!select_data$larcenies == '?',]
+select_data <- select_data[!select_data$perCapInc == '?',]
+select_data <- select_data[!select_data$NumStreet == '?',]
+select_data <- select_data[!select_data$MedRent == '?',]
+select_data <- select_data[!select_data$NumUnderPov == '?',]
+select_data <- na.omit(select_data)
+select_data$larcenies <- as.numeric(select_data$larcenies)
+select_data <- select_data %>% filter(select_data$larcenies <= 30000)
+select_data <- select_data %>% filter(select_data$NumStreet <= 250)
+select_data <- select_data %>% filter(select_data$perCapInc <= 30000)
+```
+
+```{r, eval=FALSE}
+ggplot(select_data, aes(y=larcenies, x= perCapInc), fig(7,5)) + geom_point()
+ggplot(select_data, aes(y=larcenies, x= NumUnderPov), fig(7,5)) + geom_point()
+ggplot(select_data, aes(y=larcenies, x= MedRent), fig(7,5)) + geom_point()
+ggplot(select_data, aes(y=larcenies, x= NumStreet), fig(7,5)) + geom_point()
+```
+
+```{r, echo=FALSE}
+ggplot(select_data, aes(y=larcenies, x= perCapInc), fig(7,5)) + geom_point()
+ggplot(select_data, aes(y=larcenies, x= NumUnderPov), fig(7,5)) + geom_point()
+ggplot(select_data, aes(y=larcenies, x= MedRent), fig(7,5)) + geom_point()
+ggplot(select_data, aes(y=larcenies, x= NumStreet), fig(7,5)) + geom_point()
+```
+
+
+The first scatterplot shows that there is little to no correlation between larcenies and Per Capita income.
+The second scatterplot shows that there is little to no correlation between larcenies and the number of homeless people in the street.
+The third scatterplot shows that there is little to no correlation between larcenies and the median gross rent.`
+The last scatterplot shows that relationship between larcenies and the number of people under the poverty level is positive and has a strong correlation.
+
+
+## Step 2
+
+After the data set was finalized, I fit a model with those four variables predicting the number of larcenies and looked at the summary to see how well the variables I selected did to predict.
+
+```{r}
+mod <- lm(larcenies~perCapInc+NumStreet+MedRent+NumUnderPov, data = select_data)
+summary(mod)
+```
+
+ * The statistically significant predictors are perCapInc, NumStreet, NumUnderPov, and MedRent.
+ * The R-squared value is 0.7927, which means that these 4 variables predict about 80% of the data.
+ * I would assume since the all variables had financial implications that the financial status and the crime rate of an area are correlated.
+ 
+```{r}
+plot(mod$fitted.values, mod$residuals)
+```
+
+I plotted the diagnostic plot to test for heteroscedasticity, also known as non-constant variance, and I got a cone shaped graph. That told me that I have to adjust my model in some way to make the model more reliable.
+
+## Step 3
+
+In order to try and remedy the model I performed two separate kinds of model selection processes to help me determine which variables. These models test various versions of the model and provide the variables that should be kept.  
+
+### fastbw() method
+```{r}
+mod2 <- ols(mod, data = select_data)
+fastbw(mod2, rule = 'p', sls = 0.05)
+```
+
+### stepAIC() method
+```{r}
+stepAIC(mod)
+```
+
+After both model selection techniques, the results stayed true to the output of the original model summary. However, I still have the issue where the model has inconsistent variance, so something else needs to change.
+
+## Step 4
+
+### Q-Q plot
+```{r}
+qqnorm(mod$residuals)
+qqline(mod$residuals)
+```
+
+### Lagged Residuals plot
+```{r}
+n <- dim(select_data)[1]
+plot(mod$residuals[1:n-1],mod$residuals[2:n])
+```
+
+To confirm the change from the previous step, I made a couple more graphs, a Q-Q plot and a lagged residual plot. The Q-Q plot, which graphs two different distributions, would produce a straight line if the two distributions are similar. As you can see, the Q-Q plot strays enough from the center line to warrant looking further into the model. The lagged residual plot, which tests for independence from point to point, showed clear randomness, resulting in a circular pattern. 
+
+## Step 5
+
+```{r}
+n <- dim(model.matrix(mod))[1]
+p <- dim(model.matrix(mod))[2]
+num.df <- p
+den.df <- n-p
+Fstat <- qf(0.5, num.df, den.df)
+Fstat
+cooks_dist <- cooks.distance(mod)
+cooks_dist <- as.data.frame(cooks_dist)
+cooks_out <- cooks_dist > Fstat
+cooks_out <- cooks_out[cooks_out == TRUE]
+n_out <- length(cooks_out)
+cooks_dist <- cooks.distance(mod)
+sort(cooks_dist, decreasing = TRUE)[1:n_out]
+```
+
+Since I wasn’t sure if the model needed change, I went back to the data to see if there any more data points that are outliers that I might not have seen before. Using Cook’s distance and standardized residuals, I was able to identify a few points that stood out. Cook’s distance is a statistic used to measure the influence that an observation can have on a linear regression model. That doesn’t necessarily imply negative impact, which is why we also standardized residuals. 
+
+```{r}
+stand_res <- rstandard(mod)
+cooks_out2 <- stand_res > 3
+cooks_out2 <- cooks_out2[cooks_out2 == TRUE]
+n_out2 <- length(cooks_out2)
+sort(stand_res, decreasing = TRUE)[1:n_out2]
+```
+
+Standardized residuals are quantified in standard deviation units, which is why the threshold for a large standardized residual is above 3. In a normally distributed data set, 100% of the data is generally within 3 units of standard deviation, so anything above that is considered outside of the realm of normality. In this data set, I identified 27 data points that were over 3 standard deviation units away from the center of the data set.
+
+
+## Step 6
+
+My next step is to perform another form of transformation, this time on the response variable as opposed to the predictor variables. It is called a Box-Cox transformation and the goal is to turn potential non-normal dependent variables into a normal shape. Using the boxcox() function in R, I am able to estimate the transformation parameter and visualize the 95% confidence interval of that parameter. After performing a transformation on the response variable, I plotted the diagnostic plot again to see if there is still heteroscedasticity. The cone shape seems to have faded and there is a somewhat random clump in the beginning and a downward trend follows.
+
+```{r}
+data_mod <- boxcox(mod,plotit = T)
+lambda <- data_mod$x[which.max(data_mod$y)]
+mod2 <- lm((larcenies^lambda)~perCapInc+NumStreet+NumUnderPov+MedRent, data = select_data)
+plot(mod2$fitted.values, mod2$residuals)
+```
+
+## Step 7
+
+
+
+### Final model
+
+```{r}
+mod <- lm((larcenies^2)~perCapInc+NumStreet+NumUnderPov+MedRent, data = select_data)
+plot(mod$fitted.values, mod$residuals)
+```
+
+
+### Table 
+
+```{r}
+p_values <- as.data.frame(summary(mod)$coefficients[,4])
+p_values['predictors'] <- c('Intercept','perCapInc','NumStreet','NumUnderPov','MedRent')
+par_est <- as.data.frame(summary(mod)$coefficients[,1])
+par_est['predictors'] <- c('Intercept','perCapInc','NumStreet','NumUnderPov','MedRent')
+table <- left_join(p_values,par_est, by = 'predictors')
+table <- table[c(2,3,4,5), c(2,3,1)]
+colnames(table) <- c('Predictors', 'Parameter Estimate', 'P-Values')
+table
+```
+
+### R-Squared value of the model
+
+```{r}
+summary(mod)$r.squared
+```
+### 95% C.I. of the NumUnderPov Predictor
+
+```{r}
+fit <- lm((larcenies^2)~NumUnderPov, data = select_data)
+confint(fit, 'NumUnderPov', 0.95)
+```
+
+### 95% C.I. of the response variable given each predictor is equal to its mean
+
+```{r}
+mean_capinc <- mean(select_data$perCapInc)
+mean_numstreet <- mean(select_data$NumStreet)
+mean_numpov <- mean(select_data$NumUnderPov)
+mean_medrent <- mean(select_data$MedRent)
+pred <- predict(mod, new = data.frame(perCapInc = mean_capinc, NumStreet = mean_numstreet, NumUnderPov = mean_numpov, MedRent = mean_medrent), interval = 'confidence')
+sqrt(pred)
+```
+
+### 95% C.I. of the response variable given each predictor is equal to the values of the 13th observation
+
+```{r}
+spcf_capinc <- select_data$perCapInc[13]
+spcf_numstreet <- select_data$NumStreet[13]
+spcf_numpov <- select_data$NumUnderPov[13]
+spcf_medrent <- select_data$MedRent[13]
+pred <- predict(mod, new = data.frame(perCapInc = spcf_capinc, NumStreet = spcf_numstreet, NumUnderPov = spcf_numpov, MedRent = spcf_medrent), interval = 'confidence')
+sqrt(pred)
+```
+
+When I saw that the Box-Cox transformation improved the model slightly I decided to go even further and make the transformation parameter 2. As a result the diagnostic plot looked better than it did at first. Although, there are a few data points that seem to flare out, I believe the majority of data is relatively constant in the variance. I also performed a few inferences that capture the overall strength of the model.
+
+
+## Conclusion
+
+Before I make my final results, I want to make a few comments on the analysis that I have done. There are many different types of further I could have done, but the two things I would have done would be to eliminate some of the outliers that I identified and to test for multicollinearity. I think I could have also used more diversity in my variables since half were dependent on financial status. Barring all that, I concluded that the 4 variables all contribute to the prediction of the number of larcenies, however, I think my strongest variable was NumUnderPov. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
